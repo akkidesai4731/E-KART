@@ -3,15 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import Button from "../components/common/Button";
 
-// API URL automatically handles whether /api is already present.
-const RAW_API_URL =
-  import.meta.env.VITE_API_URL || "http://192.168.1.102:8000/api";
-
-const API_BASE_URL = RAW_API_URL.replace(/\/+$/, "");
-
-const API_URL = /\/api$/i.test(API_BASE_URL)
-  ? API_BASE_URL
-  : `${API_BASE_URL}/api`;
+const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.102:8000";
 
 function loadRazorpay() {
   return new Promise((resolve) => {
@@ -47,12 +39,10 @@ export default function Checkout() {
   });
 
   function update(event) {
-    const { name, value } = event.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setForm({
+      ...form,
+      [event.target.name]: event.target.value,
+    });
   }
 
   async function submit(event) {
@@ -69,7 +59,7 @@ export default function Checkout() {
     try {
       setLoading(true);
 
-      // Step 1: Load Razorpay checkout.
+      // Step 1: Load Razorpay checkout
       const loaded = await loadRazorpay();
 
       if (!loaded) {
@@ -78,8 +68,8 @@ export default function Checkout() {
         );
       }
 
-      // Step 2: Create payment order on the backend.
-      const response = await fetch(`${API_URL}/payments/create-order`, {
+      // Step 2: Request a payment order from your backend
+      const response = await fetch(`${API_URL}/api/payments/create-order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -87,7 +77,7 @@ export default function Checkout() {
         credentials: "include",
         body: JSON.stringify({
           items: cart.map((item) => ({
-            productId: item.id || item._id,
+            productId: item.id,
             quantity: Number(item.quantity),
           })),
           delivery: {
@@ -111,7 +101,7 @@ export default function Checkout() {
         throw new Error("The backend returned incomplete payment details.");
       }
 
-      // Step 3: Configure Razorpay.
+      // Step 3: Configure Razorpay
       const options = {
         key: data.key,
         amount: data.amount,
@@ -130,20 +120,23 @@ export default function Checkout() {
           color: "#dc0000",
         },
 
-        // Step 4: Verify payment on the backend.
+        // Step 4: Verify payment on your backend
         handler: async (paymentResponse) => {
           try {
             setLoading(true);
             setError("");
 
-            const verifyResponse = await fetch(`${API_URL}/payments/verify`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
+            const verifyResponse = await fetch(
+              `${API_URL}/api/payments/verify`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                credentials: "include",
+                body: JSON.stringify(paymentResponse),
               },
-              credentials: "include",
-              body: JSON.stringify(paymentResponse),
-            });
+            );
 
             const verifyData = await verifyResponse.json();
 
@@ -157,11 +150,10 @@ export default function Checkout() {
               );
             }
 
-            // Navigate only after successful backend verification.
+            // Navigate only after the backend confirms
+            // that the saved order is paid.
             navigate("/order-success");
           } catch (err) {
-            console.error("Payment verification error:", err);
-
             setError(
               err.message ||
                 "Unable to confirm payment. Check your order status before retrying.",
@@ -178,25 +170,21 @@ export default function Checkout() {
         },
       };
 
-      // Step 5: Open Razorpay payment window.
+      // Step 5: Open the payment window
       const razorpay = new window.Razorpay(options);
 
       razorpay.on("payment.failed", (failure) => {
         console.error("Razorpay payment failed:", failure.error);
-
         setError(
           failure.error?.description || "Payment failed. Please try again.",
         );
-
         setLoading(false);
       });
 
       razorpay.open();
     } catch (err) {
       console.error("Checkout error:", err);
-
       setError(err.message || "Unable to start checkout. Please try again.");
-
       setLoading(false);
     }
   }
@@ -205,7 +193,6 @@ export default function Checkout() {
     return (
       <main className="mx-auto max-w-7xl px-4 py-20 text-center">
         <h1 className="text-2xl font-extrabold">Your cart is empty</h1>
-
         <Link to="/shop" className="mt-4 inline-block text-red-600">
           Shop products
         </Link>
@@ -299,7 +286,7 @@ export default function Checkout() {
 
           {cart.map((item) => (
             <div
-              key={item.id || item._id}
+              key={item.id}
               className="flex justify-between gap-4 border-b border-gray-200 py-4 text-xs"
             >
               <span>
@@ -314,7 +301,6 @@ export default function Checkout() {
 
           <div className="flex justify-between pt-5">
             <strong>Total</strong>
-
             <strong>₹{cartTotal.toLocaleString("en-IN")}</strong>
           </div>
         </aside>

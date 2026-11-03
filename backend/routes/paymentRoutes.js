@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const Razorpay = require("razorpay");
 
 const Product = require("../models/Product");
-//const Order = require("../models/Order");
+const Order = require("../models/Order.js");
 
 const router = express.Router();
 
