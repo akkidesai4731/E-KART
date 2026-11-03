@@ -11,7 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const API_URL = "http://192.168.1.102:8000/api/auth";
+const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 export default function Register() {
   const navigate = useNavigate();
