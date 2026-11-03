@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import ProductGrid from "../components/shop/ProductGrid";
 
-const API_URL = "http://192.168.1.102:8000/api/products";
+const API_URL = `${import.meta.env.VITE_API_URL}/products`;
 
 function getProductList(response) {
   if (Array.isArray(response)) return response;
