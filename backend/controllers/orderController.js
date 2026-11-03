@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Order = require("../models/order.js");
+const Order = require("../models/Order.js");
 const Product = require("../models/Product.js");
 
 // GET /api/orders — List all orders (admin)
