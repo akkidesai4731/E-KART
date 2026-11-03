@@ -8,22 +8,43 @@ const Order = require("../models/Order.js");
 
 const router = express.Router();
 
+// ==========================================
+// RAZORPAY CONFIGURATION
+// ==========================================
+
 function getRazorpay() {
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    throw new Error("Razorpay API keys are not configured");
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    throw new Error(
+      "Razorpay API keys are missing in Render environment variables",
+    );
   }
 
   return new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
+    key_id: keyId,
+    key_secret: keySecret,
   });
 }
 
+// ==========================================
+// CREATE RAZORPAY PAYMENT ORDER
 // POST /api/payments/create-order
+// ==========================================
+
 router.post("/create-order", async (req, res) => {
-  let savedOrder;
+  let savedOrder = null;
 
   try {
+    console.log("CREATE PAYMENT ORDER REQUEST RECEIVED");
+
+    // 1. Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error("MongoDB is not connected");
+    }
+
+    // 2. Get checkout details
     const { items, delivery } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -33,11 +54,19 @@ router.post("/create-order", async (req, res) => {
       });
     }
 
-    const fields = ["fullName", "email", "phone", "address", "city", "pinCode"];
+    // 3. Validate delivery details
+    const requiredFields = [
+      "fullName",
+      "email",
+      "phone",
+      "address",
+      "city",
+      "pinCode",
+    ];
 
     if (
       !delivery ||
-      fields.some(
+      requiredFields.some(
         (field) =>
           typeof delivery[field] !== "string" || !delivery[field].trim(),
       )
@@ -48,14 +77,15 @@ router.post("/create-order", async (req, res) => {
       });
     }
 
+    // 4. Validate product IDs and quantities
     const quantities = new Map();
 
     for (const item of items) {
-      const id = String(item.productId || "");
+      const productId = String(item.productId || "");
       const quantity = Number(item.quantity);
 
       if (
-        !mongoose.isValidObjectId(id) ||
+        !mongoose.isValidObjectId(productId) ||
         !Number.isInteger(quantity) ||
         quantity < 1 ||
         quantity > 20
@@ -66,7 +96,7 @@ router.post("/create-order", async (req, res) => {
         });
       }
 
-      const totalQuantity = (quantities.get(id) || 0) + quantity;
+      const totalQuantity = (quantities.get(productId) || 0) + quantity;
 
       if (totalQuantity > 20) {
         return res.status(400).json({
@@ -75,21 +105,24 @@ router.post("/create-order", async (req, res) => {
         });
       }
 
-      quantities.set(id, totalQuantity);
+      quantities.set(productId, totalQuantity);
     }
 
-    const ids = [...quantities.keys()];
+    // 5. Fetch actual products from MongoDB
+    const productIds = [...quantities.keys()];
+
     const products = await Product.find({
-      _id: { $in: ids },
+      _id: { $in: productIds },
     });
 
-    if (products.length !== ids.length) {
+    if (products.length !== productIds.length) {
       return res.status(400).json({
         success: false,
         message: "One or more products were not found",
       });
     }
 
+    // 6. Calculate order amount using database prices
     let totalPaise = 0;
     const orderItems = [];
 
@@ -100,17 +133,20 @@ router.post("/create-order", async (req, res) => {
       if (!Number.isFinite(price) || price <= 0) {
         return res.status(400).json({
           success: false,
-          message: "Invalid product price",
+          message: `Invalid price for product: ${product.name}`,
         });
       }
 
+      // Convert rupees to paise
       const pricePaise = Math.round(price * 100);
+
       totalPaise += pricePaise * quantity;
 
       orderItems.push({
         product: product._id,
         name: product.name,
-        imageUrl: product.imageUrl || product.image || "",
+        imageUrl:
+          product.imageUrl || product.image || product.images?.[0] || "",
         quantity,
         price: pricePaise / 100,
       });
@@ -125,38 +161,56 @@ router.post("/create-order", async (req, res) => {
 
     const totalAmount = totalPaise / 100;
 
-    // Save a pending order in MongoDB first.
+    console.log("PRODUCTS VALIDATED SUCCESSFULLY");
+    console.log("Total amount:", totalAmount);
+
+    // 7. Save pending order in MongoDB
     savedOrder = await Order.create({
       customer: {
         name: delivery.fullName.trim(),
         email: delivery.email.trim(),
         phone: delivery.phone.trim(),
       },
+
       items: orderItems,
+
       shippingAddress: {
         address: delivery.address.trim(),
         city: delivery.city.trim(),
         postalCode: delivery.pinCode.trim(),
         country: "India",
       },
+
       subtotal: totalAmount,
       shippingFee: 0,
       totalAmount,
+
       paymentMethod: "Razorpay",
       paymentStatus: "Pending",
       orderStatus: "Pending",
     });
 
-    // Create the corresponding Razorpay order.
-    const razorpayOrder = await getRazorpay().orders.create({
+    console.log("MONGODB ORDER CREATED:", savedOrder.orderNumber);
+
+    // 8. Create Razorpay order
+    const razorpay = getRazorpay();
+
+    const razorpayOrder = await razorpay.orders.create({
       amount: totalPaise,
       currency: "INR",
       receipt: savedOrder.orderNumber,
     });
 
+    console.log("RAZORPAY ORDER CREATED:", razorpayOrder.id);
+
+    // 9. Save Razorpay order ID in MongoDB
     savedOrder.razorpayOrderId = razorpayOrder.id;
+
     await savedOrder.save();
 
+    console.log("PAYMENT ORDER CREATED SUCCESSFULLY");
+
+    // 10. Send response to frontend
     return res.status(201).json({
       success: true,
       message: "Order created successfully",
@@ -167,32 +221,54 @@ router.post("/create-order", async (req, res) => {
       orderNumber: savedOrder.orderNumber,
     });
   } catch (error) {
-    console.error("Create order error:", error);
+    // ======================================
+    // DETAILED ERROR DIAGNOSTICS
+    // ======================================
 
-    // Avoid leaving a pending order if creation failed.
-    // If Razorpay created an order before the database save
-    // failed, reconcile it before allowing another payment.
+    console.error("\n========== PAYMENT ORDER ERROR ==========");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error description:", error.description);
+    console.error("Error code:", error.code);
+    console.error("Error status:", error.statusCode);
+    console.error("MongoDB state:", mongoose.connection.readyState);
+    console.error("==========================================\n");
+
+    // Remove incomplete pending order if Razorpay
+    // order creation failed before an ID was saved.
     if (savedOrder && !savedOrder.razorpayOrderId) {
       try {
         await Order.findByIdAndDelete(savedOrder._id);
+        console.log("Incomplete pending order deleted.");
       } catch (cleanupError) {
-        console.error("Order cleanup failed:", cleanupError);
+        console.error("Order cleanup failed:", cleanupError.message);
       }
     }
 
     return res.status(500).json({
       success: false,
       message: "Unable to create payment order",
+      error:
+        process.env.NODE_ENV === "production"
+          ? "Payment order creation failed. Check backend logs."
+          : error.message,
     });
   }
 });
 
+// ==========================================
+// VERIFY RAZORPAY PAYMENT
 // POST /api/payments/verify
+// ==========================================
+
 router.post("/verify", async (req, res) => {
   try {
+    console.log("PAYMENT VERIFICATION REQUEST RECEIVED");
+
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       req.body;
 
+    // 1. Validate payment details
     if (
       typeof razorpay_order_id !== "string" ||
       typeof razorpay_payment_id !== "string" ||
@@ -204,9 +280,10 @@ router.post("/verify", async (req, res) => {
       });
     }
 
+    // 2. Check Razorpay configuration
     const razorpay = getRazorpay();
 
-    // Find the order that belongs to this Razorpay order ID.
+    // 3. Find matching order in MongoDB
     const order = await Order.findOne({
       razorpayOrderId: razorpay_order_id,
       paymentMethod: "Razorpay",
@@ -219,7 +296,7 @@ router.post("/verify", async (req, res) => {
       });
     }
 
-    // Verify the signature using the backend secret.
+    // 4. Verify Razorpay signature
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -245,7 +322,7 @@ router.post("/verify", async (req, res) => {
       });
     }
 
-    // Fetch the payment directly from Razorpay.
+    // 5. Fetch actual payment details from Razorpay
     const payment = await razorpay.payments.fetch(razorpay_payment_id);
 
     if (
@@ -261,7 +338,7 @@ router.post("/verify", async (req, res) => {
       });
     }
 
-    // Idempotent retry: don't downgrade or recreate a paid order.
+    // 6. Handle already-paid orders safely
     if (order.paymentStatus === "Paid") {
       if (order.razorpayPaymentId !== razorpay_payment_id) {
         return res.status(409).json({
@@ -285,11 +362,14 @@ router.post("/verify", async (req, res) => {
       });
     }
 
+    // 7. Update order after successful verification
     order.razorpayPaymentId = razorpay_payment_id;
     order.paymentStatus = "Paid";
     order.orderStatus = "Processing";
 
     await order.save();
+
+    console.log("PAYMENT SUCCESSFULLY VERIFIED:", order.orderNumber);
 
     return res.json({
       success: true,
@@ -298,7 +378,13 @@ router.post("/verify", async (req, res) => {
       message: "Payment verified and order confirmed",
     });
   } catch (error) {
-    console.error("Payment verification error:", error);
+    console.error("\n========== PAYMENT VERIFICATION ERROR ==========");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error description:", error.description);
+    console.error("Error code:", error.code);
+    console.error("Error status:", error.statusCode);
+    console.error("================================================\n");
 
     return res.status(500).json({
       success: false,
