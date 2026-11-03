@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
-const Order = require("../models/order");
+const Order = require("../models/Order.js");
 const bcrypt = require("bcryptjs");
 
 // GET /api/customers
