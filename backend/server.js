@@ -1,18 +1,5 @@
 require("dotenv").config();
 
-console.log(
-  "Razorpay Key ID loaded:",
-  Boolean(process.env.RAZORPAY_KEY_ID),
-  process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_")
-    ? "(Test key)"
-    : "(Check key prefix)",
-);
-
-console.log(
-  "Razorpay Key Secret loaded:",
-  Boolean(process.env.RAZORPAY_KEY_SECRET),
-);
-
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -21,6 +8,7 @@ const mongoose = require("mongoose");
 
 const connectDB = require("./config/db");
 
+// Routes
 const productRoutes = require("./routes/productRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const orderRoutes = require("./routes/orderRoutes");
@@ -40,30 +28,43 @@ const PORT = process.env.PORT || 8000;
 app.disable("x-powered-by");
 app.use(helmet());
 
-// CORS: allow local development and the laptop's current LAN IP
+// CORS configuration
 const allowedOrigins = [
+  // Local development
   "http://localhost:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
 
-  // Allow the frontend opened using your laptop's IP
+  // Local network development
   "http://192.168.1.102:5173",
   "http://192.168.1.102:5174",
 
-  process.env.CLIENT_URL,
+  // Deployed customer frontend
+  "https://e-kartfrontend.vercel.app",
+
+  // Deployed admin URL from Render environment variables
   process.env.ADMIN_URL,
-];
+  process.env.CLIENT_URL,
+]
+  .filter(Boolean)
+  .map((url) => url.replace(/\/$/, ""));
 
 app.use(
   cors({
-    origin(origin, callback) {
-      // Requests without an Origin header (e.g. some direct API clients)
-      // are allowed. Browser requests must match an allowed origin.
-      if (!origin || allowedOrigins.includes(origin)) {
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header
+      if (!origin) {
         return callback(null, true);
       }
 
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      console.error("Blocked CORS origin:", origin);
       return callback(new Error(`CORS blocked this origin: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -112,7 +113,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 
-// 404 handler: must stay after all routes
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -128,7 +129,7 @@ app.use((err, req, res, next) => {
     return next(err);
   }
 
-  if (err.message && err.message.startsWith("CORS blocked this origin:")) {
+  if (err.message?.startsWith("CORS blocked this origin:")) {
     return res.status(403).json({
       success: false,
       message: err.message,
@@ -150,27 +151,20 @@ async function startServer() {
     await connectDB();
 
     app.listen(PORT, "0.0.0.0", () => {
-      const baseURL = `http://192.168.1.103:5173:${PORT}`;
-
-      console.log("======================================");
+      console.log("==================================");
       console.log("E-KART backend started successfully");
-      console.log(`Port: ${PORT}`);
-      console.log("Listening on: 0.0.0.0");
-      console.log(`Local API: http://localhost:${PORT}`);
-      console.log(`LAN API: ${baseURL}`);
-      console.log(`Health check: ${baseURL}/api/health`);
-      console.log(`Products API: ${baseURL}/api/products`);
-      console.log(`Categories API: ${baseURL}/api/categories`);
-      console.log(`Reviews API: ${baseURL}/api/reviews`);
-      console.log(`Payments API: ${baseURL}/api/payments`);
-      console.log("Allowed frontend origins:", allowedOrigins);
-      console.log("======================================");
+      console.log("Port:", PORT);
+      console.log("Environment:", process.env.NODE_ENV || "development");
+      console.log("Database:", "Connected");
+      console.log("Health check: /api/health");
+      console.log("Products API: /api/products");
+      console.log("Categories API: /api/categories");
+      console.log("Allowed origins:", allowedOrigins);
+      console.log("==================================");
     });
   } catch (error) {
-    console.error("Backend startup failed.");
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    process.exitCode = 1;
+    console.error("Backend startup failed:", error.message);
+    process.exit(1);
   }
 }
 
