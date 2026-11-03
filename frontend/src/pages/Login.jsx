@@ -4,7 +4,7 @@ import { Eye, EyeOff, LockKeyhole, Mail, AlertCircle } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://192.168.1.102:8000/api/auth";
+const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
