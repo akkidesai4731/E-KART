@@ -42,6 +42,7 @@ const allowedOrigins = [
 
   // Deployed customer frontend
   "https://e-kartfrontend.vercel.app",
+  "https://e-kart-umber.vercel.app",
 
   // Deployed admin URL from Render environment variables
   process.env.ADMIN_URL,
