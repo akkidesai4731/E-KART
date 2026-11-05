@@ -7,7 +7,8 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.102:8000";
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://e-kart-2ijq.onrender.com/api";
 
 const initialForm = {
   name: "",

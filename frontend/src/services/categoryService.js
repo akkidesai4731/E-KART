@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://192.168.1.102:8000/api";
+const API_URL = "https://e-kart-2ijq.onrender.com/api";
 
 export const getAllCategories = async () => {
   const response = await axios.get(`${API_URL}/categories`);

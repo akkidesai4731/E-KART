@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://192.168.1.102:8000/api";
+const API_URL = "https://e-kart-2ijq.onrender.com/api";
 
 export default function Account() {
   const { token, user } = useAuth();

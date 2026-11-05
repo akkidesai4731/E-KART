@@ -34,7 +34,7 @@ import {
 // ==========================================
 
 const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://192.168.1.102:8000/api"
+  import.meta.env.VITE_API_URL || "https://e-kart-2ijq.onrender.com/api"
 ).replace(/\/+$/, "");
 
 const API_URL = API_BASE_URL.endsWith("/api")
@@ -785,12 +785,12 @@ export default function Product() {
         {/* LEFT: PRODUCT IMAGE GALLERY */}
 
         <section className="w-full min-w-0">
-          <div className="flex min-h-[300px] items-center justify-center overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:min-h-[450px]">
+          <div className="flex min-h-300px items-center justify-center overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:min-h-450px">
             {activeImage ? (
               <img
                 src={activeImage}
                 alt={selectedProductName}
-                className="max-h-[420px] w-full object-contain"
+                className="max-h-420px w-full object-contain"
                 onError={() => setActiveImage("")}
               />
             ) : (
@@ -809,7 +809,7 @@ export default function Product() {
                   type="button"
                   onClick={() => setActiveImage(image)}
                   aria-label={`View product image ${index + 1}`}
-                  className={`flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-white p-1 transition sm:h-[88px] sm:w-[88px] ${
+                  className={`flex h-76px w-76px shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-white p-1 transition sm:h-88px sm:w-88px ${
                     activeImage === image
                       ? "border-red-600 shadow-sm"
                       : "border-gray-200 hover:border-gray-400"
@@ -840,7 +840,7 @@ export default function Product() {
             </p>
           )}
 
-          <h1 className="break-words text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">
+          <h1 className="wrap-break-words text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">
             {selectedProductName}
           </h1>
 
@@ -876,7 +876,7 @@ export default function Product() {
                       title={color.name || "Product color"}
                       aria-label={`Select ${color.name || "product color"}`}
                       aria-pressed={isSelected}
-                      className={`group flex h-[92px] w-[92px] shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-white p-1 transition-all sm:h-[105px] sm:w-[105px] ${
+                      className={`group flex h-92px w-92px shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-white p-1 transition-all sm:h-105px sm:w-105px ${
                         isSelected
                           ? "border-gray-900 shadow-md"
                           : "border-gray-200 hover:border-gray-400"
@@ -949,7 +949,7 @@ export default function Product() {
                         }
                         disabled={optionOutOfStock}
                         aria-pressed={isSelected}
-                        className={`min-w-[125px] rounded-xl border px-3 py-3 text-left transition sm:min-w-[135px] ${
+                        className={`min-w-125px rounded-xl border px-3 py-3 text-left transition sm:min-w-135px ${
                           isSelected
                             ? "border-gray-900 bg-gray-50 text-gray-900"
                             : "border-gray-200 text-gray-700 hover:border-gray-400"
@@ -1147,7 +1147,7 @@ export default function Product() {
                       <HighlightIcon size={21} strokeWidth={1.8} />
                     </div>
 
-                    <p className="break-words text-sm leading-6 text-gray-700 sm:text-base">
+                    <p className="wrap-break-words text-sm leading-6 text-gray-700 sm:text-base">
                       {highlight.title}
                     </p>
                   </div>
@@ -1176,7 +1176,7 @@ export default function Product() {
                   {spec.name || `Specification ${index + 1}`}
                 </span>
 
-                <span className="break-words text-gray-600">
+                <span className="wrap-break-words text-gray-600">
                   {formatValue(spec.value)}
                 </span>
               </div>
@@ -1203,7 +1203,7 @@ export default function Product() {
                   {key.replace(/([A-Z])/g, " $1")}
                 </span>
 
-                <span className="break-words text-gray-600">
+                <span className="wrap-break-words text-gray-600">
                   {formatValue(value)}
                 </span>
               </div>
@@ -1222,7 +1222,7 @@ export default function Product() {
 
       {showLoginPopup && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/60 p-4"
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setShowLoginPopup(false);

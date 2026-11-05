@@ -40,21 +40,23 @@ const allowedOrigins = [
   "http://192.168.1.102:5173",
   "http://192.168.1.102:5174",
 
-  // Deployed customer frontend
-  "https://e-kartfrontend.vercel.app",
+  // Deployed Admin Panel
   "https://e-kart-umber.vercel.app",
 
-  // Deployed admin URL from Render environment variables
+  // Deployed Customer Frontend
+  "https://e-kartfrontend.vercel.app",
+
+  // Additional deployed domains
   process.env.ADMIN_URL,
   process.env.CLIENT_URL,
 ]
   .filter(Boolean)
-  .map((url) => url.replace(/\/$/, ""));
+  .map((url) => url.trim().replace(/\/$/, ""));
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without an Origin header
+      // Allow requests without Origin header
       if (!origin) {
         return callback(null, true);
       }
@@ -66,10 +68,14 @@ app.use(
       }
 
       console.error("Blocked CORS origin:", origin);
+
       return callback(new Error(`CORS blocked this origin: ${origin}`));
     },
+
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
     allowedHeaders: ["Content-Type", "Authorization"],
+
     credentials: true,
   }),
 );
@@ -96,14 +102,6 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
     message: "E-KART Backend is running successfully",
-  });
-});
-
-// API health check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "E-KART API healthy",
     database:
       mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
@@ -168,6 +166,7 @@ async function startServer() {
       console.log("Health check: /api/health");
       console.log("Products API: /api/products");
       console.log("Categories API: /api/categories");
+      console.log("Dashboard API: /api/dashboard");
       console.log("Allowed origins:", allowedOrigins);
       console.log("==================================");
     });

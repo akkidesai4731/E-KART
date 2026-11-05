@@ -266,7 +266,7 @@ export default function ProductCard({ product = {} }) {
             <p
               role="status"
               aria-live="polite"
-              className={`mt-2 break-words text-xs ${
+              className={`mt-2 wrap-break-words text-xs ${
                 wishlistMessage.includes("successfully") ||
                 wishlistMessage.includes("Removed")
                   ? "text-green-700"
@@ -282,7 +282,7 @@ export default function ProductCard({ product = {} }) {
       {/* Login popup for cart and wishlist */}
       {showLoginPopup && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/60 p-4"
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setShowLoginPopup(false);

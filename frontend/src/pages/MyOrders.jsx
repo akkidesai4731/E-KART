@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Package, RefreshCw, ShoppingBag } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://192.168.1.104:8000/api";
+const API_URL = "https://e-kart-2ijq.onrender.com/api";
 
 export default function MyOrders() {
   const { token } = useAuth();

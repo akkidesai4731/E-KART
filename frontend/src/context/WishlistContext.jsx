@@ -11,7 +11,7 @@ const WishlistContext = createContext(null);
 const WISHLIST_KEY = "ekart-wishlist";
 
 const API_BASE = (
-  import.meta.env.VITE_API_URL || "http://192.168.1.102:8000/api"
+  import.meta.env.VITE_API_URL || "https://e-kart-2ijq.onrender.com/api"
 ).replace(/\/+$/, "");
 
 const API_URL = API_BASE.endsWith("/api")
