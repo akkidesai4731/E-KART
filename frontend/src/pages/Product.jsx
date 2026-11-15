@@ -416,12 +416,13 @@ export default function Product() {
     setActiveImage(images[0] || "");
   }, [images]);
 
+  // SHOW UP TO 10 IMAGES
   const galleryImages = useMemo(() => {
     if (!images.length) return [];
 
     return [activeImage, ...images.filter((image) => image !== activeImage)]
       .filter(Boolean)
-      .slice(0, 4);
+      .slice(0, 10);
   }, [images, activeImage]);
 
   // ==========================================
@@ -479,8 +480,16 @@ export default function Product() {
   // ==========================================
 
   function handleColorChange(index) {
+    if (index < 0 || index >= colors.length) return;
+
     setSelectedColor(index);
     setCartMessage("");
+
+    const selectedColorImages = getColorImages(colors[index]);
+
+    if (selectedColorImages.length > 0) {
+      setActiveImage(selectedColorImages[0]);
+    }
   }
 
   function handleVariantChange(variantIndex, optionIndex) {
@@ -834,30 +843,24 @@ export default function Product() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2">
                   {colors.map((color, index) => {
                     const optionImage = getColorImage(color);
                     const isSelected = selectedColor === index;
-
-                    const colorOutOfStock =
-                      color.stock !== undefined &&
-                      color.stock !== null &&
-                      Number(color.stock) <= 0;
 
                     return (
                       <button
                         key={color._id || `${color.name}-${index}`}
                         type="button"
                         onClick={() => handleColorChange(index)}
-                        disabled={colorOutOfStock}
                         title={color.name || "Product color"}
                         aria-label={`Select ${color.name || "product color"}`}
                         aria-pressed={isSelected}
-                        className={`group flex w-[76px] flex-col items-center gap-2 rounded-lg border p-2 transition ${
+                        className={`group flex w-[76px] shrink-0 flex-col items-center gap-2 rounded-lg border p-2 transition ${
                           isSelected
                             ? "border-red-600 bg-red-50 ring-1 ring-red-600"
                             : "border-gray-200 hover:border-gray-400"
-                        } disabled:cursor-not-allowed disabled:opacity-40`}
+                        }`}
                       >
                         <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-white">
                           {optionImage ? (
