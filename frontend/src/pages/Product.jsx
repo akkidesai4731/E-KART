@@ -27,7 +27,6 @@ import {
   Settings,
   Clock,
   Gauge,
-  Image as ImageIcon,
 } from "lucide-react";
 
 // ==========================================
@@ -110,9 +109,8 @@ function formatValue(value) {
 }
 
 function getHighlightIcon(highlight) {
-  const value = `${highlight?.title || ""} ${
-    highlight?.icon || ""
-  }`.toLowerCase();
+  const value =
+    `${highlight?.title || ""} ${highlight?.icon || ""}`.toLowerCase();
 
   if (/ram|memory/.test(value)) return MemoryStick;
   if (/rom|storage|gb|tb/.test(value)) return HardDrive;
@@ -132,15 +130,8 @@ function getHighlightIcon(highlight) {
 }
 
 // ==========================================
-// DYNAMIC STORAGE HIGHLIGHTS
+// DYNAMIC STORAGE
 // ==========================================
-
-// Finds the storage value from the currently selected variant.
-// Supports values such as:
-// 1 TB
-// 512 GB
-// 8 GB RAM + 256 GB ROM
-// 256GB
 
 function getSelectedStorage(selectedVariantOptions) {
   for (const item of selectedVariantOptions) {
@@ -149,7 +140,6 @@ function getSelectedStorage(selectedVariantOptions) {
 
     if (!value) continue;
 
-    // Prefer a capacity explicitly marked as ROM/storage.
     const markedStorage = value.match(
       /(\d+(?:\.\d+)?\s*(?:TB|GB|MB))\s*(?:ROM|storage)/i,
     );
@@ -158,20 +148,16 @@ function getSelectedStorage(selectedVariantOptions) {
       return markedStorage[1].replace(/\s+/g, " ").trim();
     }
 
-    // A variant group named Storage or ROM.
     if (/storage|rom/.test(groupName)) {
       const capacity = value.match(/(\d+(?:\.\d+)?\s*(?:TB|GB|MB))/i);
 
       return capacity ? capacity[1].replace(/\s+/g, " ").trim() : value;
     }
 
-    // Handles combined values such as 8GB RAM + 256GB ROM.
     if (/\b\d+(?:\.\d+)?\s*(?:TB|GB|MB)\b/i.test(value)) {
       const capacities = value.match(/\d+(?:\.\d+)?\s*(?:TB|GB|MB)/gi);
 
       if (capacities?.length) {
-        // In a combined RAM + storage value, the last capacity
-        // is normally the storage capacity.
         return capacities[capacities.length - 1].replace(/\s+/g, " ").trim();
       }
     }
@@ -179,8 +165,6 @@ function getSelectedStorage(selectedVariantOptions) {
 
   return "";
 }
-
-// Replaces the original storage capacity in the saved highlight.
 
 function getDynamicHighlights(productHighlights, selectedStorage) {
   const highlights = Array.isArray(productHighlights)
@@ -205,16 +189,11 @@ function getDynamicHighlights(productHighlights, selectedStorage) {
       selectedStorage,
     );
 
-    // If the original highlight only says "Storage" or "ROM",
-    // add the currently selected capacity.
     if (!/\d+(?:\.\d+)?\s*(?:TB|GB|MB)/i.test(originalTitle)) {
       updatedTitle = `${selectedStorage} ${originalTitle}`;
     }
 
-    return {
-      ...highlight,
-      title: updatedTitle,
-    };
+    return { ...highlight, title: updatedTitle };
   });
 }
 
@@ -267,10 +246,6 @@ function getDynamicProductTitle(productName, color, selectedVariants) {
       otherVariants.push(value);
     }
   });
-
-  if (colorName && storage && ram) {
-    return `${baseName} (${colorName}, ${storage}) (${ram})`;
-  }
 
   const titleParts = [];
 
@@ -329,9 +304,7 @@ export default function Product() {
         const response = await fetch(`${API_URL}/${id}`, {
           cache: "no-store",
           signal: controller.signal,
-          headers: {
-            Accept: "application/json",
-          },
+          headers: { Accept: "application/json" },
         });
 
         if (!response.ok) {
@@ -397,7 +370,7 @@ export default function Product() {
   }, [id]);
 
   // ==========================================
-  // COLORS
+  // COLORS AND VARIANTS
   // ==========================================
 
   const colors = useMemo(
@@ -406,10 +379,6 @@ export default function Product() {
   );
 
   const currentColor = colors[selectedColor] || null;
-
-  // ==========================================
-  // VARIANTS
-  // ==========================================
 
   const variants = useMemo(
     () => (Array.isArray(product?.variants) ? product.variants : []),
@@ -440,43 +409,47 @@ export default function Product() {
   const images = useMemo(() => {
     const colorImages = getColorImages(currentColor);
 
-    if (colorImages.length > 0) {
-      return colorImages;
-    }
-
-    return getProductImages(product);
+    return colorImages.length ? colorImages : getProductImages(product);
   }, [product, currentColor]);
 
   useEffect(() => {
     setActiveImage(images[0] || "");
   }, [images]);
 
-  // ==========================================
-  // DYNAMIC PRODUCT NAME
-  // ==========================================
+  const galleryImages = useMemo(() => {
+    if (!images.length) return [];
 
-  const selectedProductName = useMemo(() => {
-    return getDynamicProductTitle(
-      product?.name,
-      currentColor,
-      selectedVariantOptions,
-    );
-  }, [product?.name, currentColor, selectedVariantOptions]);
+    return [activeImage, ...images.filter((image) => image !== activeImage)]
+      .filter(Boolean)
+      .slice(0, 4);
+  }, [images, activeImage]);
 
   // ==========================================
-  // DYNAMIC HIGHLIGHTS
+  // DYNAMIC PRODUCT NAME AND HIGHLIGHTS
   // ==========================================
 
-  const selectedStorage = useMemo(() => {
-    return getSelectedStorage(selectedVariantOptions);
-  }, [selectedVariantOptions]);
+  const selectedProductName = useMemo(
+    () =>
+      getDynamicProductTitle(
+        product?.name,
+        currentColor,
+        selectedVariantOptions,
+      ),
+    [product?.name, currentColor, selectedVariantOptions],
+  );
 
-  const highlights = useMemo(() => {
-    return getDynamicHighlights(product?.highlights, selectedStorage);
-  }, [product?.highlights, selectedStorage]);
+  const selectedStorage = useMemo(
+    () => getSelectedStorage(selectedVariantOptions),
+    [selectedVariantOptions],
+  );
+
+  const highlights = useMemo(
+    () => getDynamicHighlights(product?.highlights, selectedStorage),
+    [product?.highlights, selectedStorage],
+  );
 
   // ==========================================
-  // PRICE
+  // PRICE AND STOCK
   // ==========================================
 
   const price = Number(purchaseOption?.price ?? product?.price ?? 0);
@@ -495,10 +468,6 @@ export default function Product() {
       ? Math.round(((originalPrice - price) / originalPrice) * 100)
       : 0;
 
-  // ==========================================
-  // STOCK
-  // ==========================================
-
   const stock = Number(
     purchaseOption?.stock ?? currentColor?.stock ?? product?.stock ?? 0,
   );
@@ -506,23 +475,13 @@ export default function Product() {
   const outOfStock = stock <= 0;
 
   // ==========================================
-  // SELECT COLOR
+  // SELECT COLOR AND VARIANT
   // ==========================================
 
   function handleColorChange(index) {
     setSelectedColor(index);
     setCartMessage("");
-
-    const selectedImage = getColorImage(colors[index]);
-
-    if (selectedImage) {
-      setActiveImage(selectedImage);
-    }
   }
-
-  // ==========================================
-  // SELECT VARIANT
-  // ==========================================
 
   function handleVariantChange(variantIndex, optionIndex) {
     setSelectedOptions((previous) => ({
@@ -573,10 +532,8 @@ export default function Product() {
 
     const cartProduct = {
       ...product,
-
       _id: String(productId),
       id: String(productId),
-
       name: selectedProductName,
       price,
       originalPrice,
@@ -637,7 +594,6 @@ export default function Product() {
       setCartMessage("Product added to cart successfully!");
     } catch (err) {
       console.error("Add to cart error:", err);
-
       setCartMessageType("error");
       setCartMessage(err.message || "Unable to add product to cart.");
     } finally {
@@ -673,17 +629,12 @@ export default function Product() {
       navigate("/checkout");
     } catch (err) {
       console.error("Buy Now error:", err);
-
       setCartMessageType("error");
       setCartMessage(err.message || "Unable to proceed to checkout.");
     } finally {
       setAddingToCart(false);
     }
   }
-
-  // ==========================================
-  // LOGIN REDIRECT
-  // ==========================================
 
   function handleLoginNow() {
     setShowLoginPopup(false);
@@ -696,7 +647,7 @@ export default function Product() {
   }
 
   // ==========================================
-  // LOADING
+  // LOADING AND ERROR
   // ==========================================
 
   if (loading) {
@@ -710,15 +661,10 @@ export default function Product() {
     );
   }
 
-  // ==========================================
-  // ERROR
-  // ==========================================
-
   if (error) {
     return (
       <div className="px-4 py-20 text-center">
         <h2 className="mb-3 text-xl font-bold text-red-600">{error}</h2>
-
         <Link to="/shop" className="font-semibold text-red-600 underline">
           Return to Shop
         </Link>
@@ -729,16 +675,12 @@ export default function Product() {
   if (!product) return null;
 
   // ==========================================
-  // SPECIFICATIONS
+  // SPECIFICATIONS AND EXTRA DETAILS
   // ==========================================
 
   const specifications = Array.isArray(product.specifications)
     ? product.specifications
     : [];
-
-  // ==========================================
-  // ADDITIONAL PRODUCT DETAILS
-  // ==========================================
 
   const excludedFields = new Set([
     "_id",
@@ -748,6 +690,7 @@ export default function Product() {
     "updatedAt",
     "image",
     "imageUrl",
+    "thumbnail",
     "images",
     "imagePublicId",
     "imagePublicIds",
@@ -776,45 +719,37 @@ export default function Product() {
       typeof value !== "function",
   );
 
-  const galleryImages =
-    images.length > 1
-      ? [activeImage, ...images.filter((image) => image !== activeImage)]
-          .filter(Boolean)
-          .slice(0, 4)
-      : images;
-
   // ==========================================
-  // CLIENT PRODUCT PAGE
+  // PRODUCT PAGE UI
   // ==========================================
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-[#f1f3f6] px-2 py-3 sm:px-4 sm:py-5 lg:px-6">
-      <div className="mx-auto max-w-[1400px]">
+    <main className="min-h-screen w-full bg-[#f1f3f6] px-3 py-4 sm:px-5 lg:px-8">
+      <div className="mx-auto max-w-[1440px]">
         {/* BREADCRUMB */}
-        <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-gray-500 sm:text-sm">
+
+        <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:text-sm">
           <Link to="/" className="hover:text-red-600">
             Home
           </Link>
           <span>/</span>
           <Link to="/shop" className="hover:text-red-600">
-            Mobiles & Accessories
+            Shop
           </Link>
           <span>/</span>
-          <span className="max-w-[240px] truncate text-gray-700">
+          <span className="text-gray-700">
             {typeof product.category === "object"
               ? product.category?.name
               : product.category || "Products"}
           </span>
-          <span>/</span>
-          <span className="max-w-[260px] truncate font-medium text-gray-800">
-            {selectedProductName}
-          </span>
         </nav>
 
-        {/* MAIN PRODUCT AREA */}
-        <div className="grid grid-cols-1 items-start gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(400px,0.92fr)] lg:gap-6">
-          {/* LEFT: RESPONSIVE PRODUCT IMAGE GALLERY */}
-          <section className="min-w-0 rounded-xl bg-white p-2.5 shadow-sm sm:p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+        {/* MAIN PRODUCT LAYOUT */}
+
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] xl:gap-6">
+          {/* LEFT: IMAGE GALLERY */}
+
+          <section className="min-w-0 rounded-xl border border-gray-100 bg-white p-3 shadow-sm sm:p-5 lg:sticky lg:top-20 lg:self-start">
             <ProductGallery
               images={galleryImages}
               activeImage={activeImage}
@@ -824,42 +759,86 @@ export default function Product() {
           </section>
 
           {/* RIGHT: PRODUCT DETAILS */}
-          <section className="min-w-0 rounded-xl bg-white p-3 shadow-sm sm:p-5 lg:p-6">
+
+          <section className="min-w-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6 lg:p-7">
+            {/* BRAND */}
+
             {product.brand && (
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-red-600 sm:text-sm">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-red-600">
                 {product.brand}
               </p>
             )}
+
+            {/* PRODUCT NAME */}
 
             <h1 className="break-words text-xl font-semibold leading-snug text-gray-900 sm:text-2xl">
               {selectedProductName}
             </h1>
 
             {/* RATING */}
+
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <span className="rounded bg-green-700 px-2 py-1 font-semibold text-white">
                 {Number(product.rating || 0).toFixed(1)} ★
               </span>
+
               <span className="text-gray-500">
                 {Number(product.numReviews || 0).toLocaleString("en-IN")}{" "}
                 ratings & reviews
               </span>
             </div>
 
+            {/* PRICE */}
+
+            <div className="mt-5 rounded-lg bg-gray-50 p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Price
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-3xl font-bold tracking-tight text-gray-900">
+                  ₹{formatPrice(price)}
+                </span>
+
+                {originalPrice > price && (
+                  <span className="text-lg text-gray-400 line-through">
+                    ₹{formatPrice(originalPrice)}
+                  </span>
+                )}
+
+                {discount > 0 && (
+                  <span className="rounded bg-green-50 px-2 py-1 text-sm font-bold text-green-700">
+                    {discount}% OFF
+                  </span>
+                )}
+              </div>
+
+              {discount > 0 && (
+                <p className="mt-1 text-sm font-medium text-green-700">
+                  You save ₹{formatPrice(originalPrice - price)}
+                </p>
+              )}
+            </div>
+
             {/* COLOR SELECTION */}
+
             {colors.length > 0 && (
-              <div className="mt-5 border-t border-gray-100 pt-4">
-                <h3 className="mb-3 text-sm font-semibold text-gray-800">
-                  Selected Color:
-                  <span className="ml-1 font-normal text-gray-600">
+              <div className="mt-6 border-t border-gray-100 pt-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    Choose Color
+                  </h3>
+
+                  <span className="text-sm font-medium text-gray-600">
                     {currentColor?.name || "Select a color"}
                   </span>
-                </h3>
+                </div>
 
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-3">
                   {colors.map((color, index) => {
                     const optionImage = getColorImage(color);
                     const isSelected = selectedColor === index;
+
                     const colorOutOfStock =
                       color.stock !== undefined &&
                       color.stock !== null &&
@@ -874,33 +853,32 @@ export default function Product() {
                         title={color.name || "Product color"}
                         aria-label={`Select ${color.name || "product color"}`}
                         aria-pressed={isSelected}
-                        className={`relative flex h-[82px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-white p-1 transition sm:h-[94px] sm:w-[84px] ${
+                        className={`group flex w-[76px] flex-col items-center gap-2 rounded-lg border p-2 transition ${
                           isSelected
-                            ? "border-gray-900 shadow-sm"
+                            ? "border-red-600 bg-red-50 ring-1 ring-red-600"
                             : "border-gray-200 hover:border-gray-400"
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                        } disabled:cursor-not-allowed disabled:opacity-40`}
                       >
-                        {optionImage ? (
-                          <img
-                            src={optionImage}
-                            alt={color.name || "Product color"}
-                            className="h-full w-full rounded-lg bg-gray-50 object-contain"
-                          />
-                        ) : (
-                          <span
-                            className="flex h-full w-full items-center justify-center rounded-lg px-1 text-center text-[10px] font-medium text-gray-700"
-                            style={{
-                              backgroundColor: color.colorCode || "#f3f4f6",
-                            }}
-                          >
-                            {color.name}
-                          </span>
-                        )}
-                        {colorOutOfStock && (
-                          <span className="absolute inset-x-0 bottom-0 bg-white/90 py-1 text-[9px] font-semibold text-red-600">
-                            Out of stock
-                          </span>
-                        )}
+                        <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-white">
+                          {optionImage ? (
+                            <img
+                              src={optionImage}
+                              alt={color.name || "Product color"}
+                              className="h-full w-full object-contain"
+                            />
+                          ) : (
+                            <span
+                              className="h-full w-full"
+                              style={{
+                                backgroundColor: color.colorCode || "#e5e7eb",
+                              }}
+                            />
+                          )}
+                        </span>
+
+                        <span className="w-full truncate text-center text-[11px] font-medium text-gray-700">
+                          {color.name}
+                        </span>
                       </button>
                     );
                   })}
@@ -909,35 +887,43 @@ export default function Product() {
             )}
 
             {/* VARIANT SELECTION */}
+
             {variants.map((variant, variantIndex) => {
               const options = Array.isArray(variant.options)
                 ? variant.options
                 : [];
+
               const selectedIndex = selectedOptions[variantIndex] ?? 0;
 
               return (
                 <div
                   key={variant._id || `${variant.name}-${variantIndex}`}
-                  className="mt-5 border-t border-gray-100 pt-4"
+                  className="mt-6 border-t border-gray-100 pt-5"
                 >
-                  <h3 className="mb-3 text-sm font-semibold text-gray-800">
-                    {variant.name || "Variant"}:
-                    <span className="ml-1 font-normal text-gray-600">
-                      {options[selectedIndex]?.value || "Select variant"}
-                    </span>
-                  </h3>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-gray-800">
+                      Select {variant.name || "Variant"}
+                    </h3>
 
-                  <div className="flex flex-wrap gap-2">
+                    <span className="text-sm font-medium text-gray-600">
+                      {options[selectedIndex]?.value || "Select option"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {options.map((option, optionIndex) => {
                       const isSelected = selectedIndex === optionIndex;
+
                       const optionOutOfStock =
                         option.stock !== undefined &&
                         option.stock !== null &&
                         Number(option.stock) <= 0;
+
                       const optionPrice = Number(option.price ?? price);
                       const optionOriginalPrice = Number(
                         option.originalPrice ?? 0,
                       );
+
                       const optionDiscount =
                         optionOriginalPrice > optionPrice &&
                         optionOriginalPrice > 0
@@ -957,35 +943,39 @@ export default function Product() {
                           }
                           disabled={optionOutOfStock}
                           aria-pressed={isSelected}
-                          className={`min-w-[112px] max-w-full rounded-xl border px-3 py-3 text-left transition sm:min-w-[128px] ${
+                          className={`min-w-0 rounded-lg border p-3 text-left transition ${
                             isSelected
-                              ? "border-gray-900 bg-gray-50 shadow-sm"
+                              ? "border-red-600 bg-red-50 ring-1 ring-red-600"
                               : "border-gray-200 bg-white hover:border-gray-400"
                           } disabled:cursor-not-allowed disabled:opacity-40`}
                         >
-                          <span className="block text-xs font-semibold leading-5 text-gray-800 sm:text-sm">
+                          <span className="block break-words text-sm font-semibold text-gray-800">
                             {option.value}
                           </span>
-                          <span className="mt-2 block border-t border-gray-200 pt-2 text-sm font-bold text-gray-900">
+
+                          <span className="mt-2 block text-sm font-bold text-gray-900">
                             ₹{formatPrice(optionPrice)}
                           </span>
+
                           {optionOriginalPrice > optionPrice && (
-                            <span className="mt-0.5 block text-[11px] text-gray-400 line-through">
+                            <span className="mt-1 block text-xs text-gray-400 line-through">
                               ₹{formatPrice(optionOriginalPrice)}
                             </span>
                           )}
+
                           {optionDiscount > 0 && (
                             <span className="mt-1 block text-xs font-semibold text-green-700">
-                              ↓{optionDiscount}% off
+                              {optionDiscount}% OFF
                             </span>
                           )}
+
                           {optionOutOfStock ? (
-                            <span className="mt-1 block text-xs font-medium text-red-600">
+                            <span className="mt-1 block text-xs text-red-600">
                               Out of stock
                             </span>
                           ) : option.stock !== undefined &&
                             option.stock !== null ? (
-                            <span className="mt-1 block text-xs text-orange-600">
+                            <span className="mt-1 block text-xs text-gray-500">
                               {option.stock} left
                             </span>
                           ) : null}
@@ -997,42 +987,23 @@ export default function Product() {
               );
             })}
 
-            {/* PRODUCT PRICE */}
-            <div className="mt-5 border-t border-gray-100 pt-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                Price
-              </p>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                {discount > 0 && (
-                  <span className="text-lg font-semibold text-green-700">
-                    ↓{discount}%
-                  </span>
-                )}
-                {originalPrice > price && (
-                  <span className="text-lg text-gray-400 line-through">
-                    ₹{formatPrice(originalPrice)}
-                  </span>
-                )}
-                <span className="text-3xl font-bold tracking-tight text-gray-900">
-                  ₹{formatPrice(price)}
-                </span>
-              </div>
-              {discount > 0 && (
-                <p className="mt-1 text-xs font-medium text-green-700">
-                  You save ₹{formatPrice(originalPrice - price)}
-                </p>
-              )}
-            </div>
-
             {/* DESCRIPTION */}
+
             {product.description && (
-              <p className="mt-4 whitespace-pre-line text-sm leading-6 text-gray-600">
-                {product.description}
-              </p>
+              <div className="mt-6 border-t border-gray-100 pt-5">
+                <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                  Product Description
+                </h3>
+
+                <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
+                  {product.description}
+                </p>
+              </div>
             )}
 
             {/* STOCK */}
-            <div className="mt-4 border-t border-gray-100 pt-4">
+
+            <div className="mt-5 border-t border-gray-100 pt-4">
               {outOfStock ? (
                 <p className="font-semibold text-red-600">
                   Currently Out of Stock
@@ -1046,15 +1017,18 @@ export default function Product() {
             </div>
 
             {/* DELIVERY AND WARRANTY */}
+
             <div className="mt-4 space-y-3 border-y border-gray-100 py-4 text-sm text-gray-600">
               <p className="flex items-center gap-3">
                 <Truck size={19} className="shrink-0 text-red-600" />
                 Delivery availability at checkout
               </p>
+
               <p className="flex items-center gap-3">
                 <ShieldCheck size={19} className="shrink-0 text-red-600" />
                 Secure shopping with E-KART
               </p>
+
               {product.warranty && (
                 <p className="flex items-center gap-3">
                   <Check size={19} className="shrink-0 text-red-600" />
@@ -1064,8 +1038,9 @@ export default function Product() {
             </div>
 
             {/* CATEGORY */}
+
             {product.category && (
-              <p className="mt-3 text-xs text-gray-500">
+              <p className="mt-4 text-xs text-gray-500">
                 Category:{" "}
                 <strong className="text-gray-800">
                   {typeof product.category === "object"
@@ -1076,7 +1051,8 @@ export default function Product() {
             )}
 
             {/* ADD TO CART / BUY NOW */}
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 disabled={addingToCart || outOfStock}
@@ -1086,6 +1062,7 @@ export default function Product() {
                 <ShoppingCart size={19} />
                 {addingToCart ? "Please wait..." : "Add to Cart"}
               </button>
+
               <button
                 type="button"
                 disabled={addingToCart || outOfStock}
@@ -1098,6 +1075,7 @@ export default function Product() {
             </div>
 
             {/* CART MESSAGE */}
+
             {cartMessage && (
               <div
                 role="status"
@@ -1114,7 +1092,7 @@ export default function Product() {
 
             <Link
               to="/shop"
-              className="mt-4 block text-center text-sm font-semibold text-gray-500 hover:text-red-600"
+              className="mt-5 block text-center text-sm font-semibold text-gray-500 hover:text-red-600"
             >
               Continue Shopping
             </Link>
@@ -1122,17 +1100,19 @@ export default function Product() {
         </div>
 
         {/* PRODUCT HIGHLIGHTS */}
+
         {highlights.length > 0 && (
-          <section className="mt-5 overflow-hidden rounded-lg bg-white shadow-sm">
+          <section className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm">
             <button
               type="button"
               onClick={() => setHighlightsOpen((previous) => !previous)}
               aria-expanded={highlightsOpen}
-              className="flex w-full items-center justify-between px-4 py-4 text-left sm:px-6"
+              className="flex w-full items-center justify-between px-5 py-4 text-left sm:px-6"
             >
               <h2 className="text-lg font-bold text-gray-900">
                 Product Highlights
               </h2>
+
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
                 {highlightsOpen ? (
                   <ChevronUp size={20} />
@@ -1141,18 +1121,21 @@ export default function Product() {
                 )}
               </span>
             </button>
+
             {highlightsOpen && (
-              <div className="grid grid-cols-1 gap-4 px-4 pb-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 px-5 pb-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
                 {highlights.map((highlight, index) => {
                   const HighlightIcon = getHighlightIcon(highlight);
+
                   return (
                     <div
                       key={highlight._id || index}
-                      className="flex items-center gap-3"
+                      className="flex min-w-0 items-center gap-3"
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-gray-700">
                         <HighlightIcon size={21} strokeWidth={1.8} />
                       </div>
+
                       <p className="break-words text-sm leading-6 text-gray-700">
                         {highlight.title}
                       </p>
@@ -1165,11 +1148,13 @@ export default function Product() {
         )}
 
         {/* PRODUCT SPECIFICATIONS */}
+
         {specifications.length > 0 && (
-          <section className="mt-5 rounded-lg bg-white p-5 shadow-sm sm:p-7">
+          <section className="mt-6 rounded-xl bg-white p-5 shadow-sm sm:p-7">
             <h2 className="mb-5 text-xl font-bold text-gray-900">
               Product Specifications
             </h2>
+
             <div className="divide-y divide-gray-100">
               {specifications.map((spec, index) => (
                 <div
@@ -1179,6 +1164,7 @@ export default function Product() {
                   <span className="font-semibold text-gray-700">
                     {spec.name || `Specification ${index + 1}`}
                   </span>
+
                   <span className="break-words text-gray-600">
                     {formatValue(spec.value)}
                   </span>
@@ -1189,11 +1175,13 @@ export default function Product() {
         )}
 
         {/* ADDITIONAL PRODUCT DETAILS */}
+
         {extraDetails.length > 0 && (
-          <section className="mt-5 rounded-lg bg-white p-5 shadow-sm sm:p-7">
+          <section className="mt-6 rounded-xl bg-white p-5 shadow-sm sm:p-7">
             <h2 className="mb-5 text-xl font-bold text-gray-900">
               More Product Details
             </h2>
+
             <div className="divide-y divide-gray-100">
               {extraDetails.map(([key, value]) => (
                 <div
@@ -1203,6 +1191,7 @@ export default function Product() {
                   <span className="font-semibold capitalize text-gray-700">
                     {key.replace(/([A-Z])/g, " $1")}
                   </span>
+
                   <span className="break-words text-gray-600">
                     {formatValue(value)}
                   </span>
@@ -1213,17 +1202,21 @@ export default function Product() {
         )}
 
         {/* CUSTOMER REVIEWS */}
+
         <section className="mt-6">
           <ProductReviews productId={product._id || product.id} />
         </section>
       </div>
 
-      {/* LOGIN REQUIRED POPUP */}
+      {/* LOGIN POPUP */}
+
       {showLoginPopup && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
           onClick={(event) => {
-            if (event.target === event.currentTarget) setShowLoginPopup(false);
+            if (event.target === event.currentTarget) {
+              setShowLoginPopup(false);
+            }
           }}
         >
           <div
@@ -1240,19 +1233,23 @@ export default function Product() {
             >
               <X size={20} />
             </button>
+
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
               <ShoppingCart size={30} className="text-red-600" />
             </div>
+
             <h2
               id="login-popup-title"
               className="text-xl font-bold text-gray-900"
             >
               Please Login First!
             </h2>
+
             <p className="mt-3 text-sm leading-6 text-gray-600">
               Login to your E-KART account before adding products to your cart
               or purchasing this product.
             </p>
+
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
@@ -1261,6 +1258,7 @@ export default function Product() {
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={handleLoginNow}
