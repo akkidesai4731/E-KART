@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import ProductReviews from "../components/product/ProductReviews";
+import ProductGallery from "../components/product/ProductGallery";
 
 import {
   ShoppingCart,
@@ -787,7 +788,7 @@ export default function Product() {
   // ==========================================
 
   return (
-    <main className="min-h-screen bg-[#f1f3f6] px-2 py-4 sm:px-4 lg:px-6">
+    <main className="min-h-screen w-full overflow-x-hidden bg-[#f1f3f6] px-2 py-3 sm:px-4 sm:py-5 lg:px-6">
       <div className="mx-auto max-w-[1400px]">
         {/* BREADCRUMB */}
         <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-gray-500 sm:text-sm">
@@ -811,80 +812,19 @@ export default function Product() {
         </nav>
 
         {/* MAIN PRODUCT AREA */}
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.12fr)_minmax(390px,0.88fr)] lg:gap-5">
-          {/* LEFT: IMAGE GALLERY */}
-          <section className="min-w-0 rounded-lg bg-white p-3 shadow-sm sm:p-4">
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-              {galleryImages.map((image, index) => (
-                <button
-                  key={`${image}-${index}`}
-                  type="button"
-                  onClick={() => setActiveImage(image)}
-                  aria-label={`View product image ${index + 1}`}
-                  aria-pressed={activeImage === image}
-                  className={`group relative flex aspect-square min-w-0 items-center justify-center overflow-hidden rounded-lg bg-[#f7f7f7] p-2 transition sm:p-3 ${
-                    activeImage === image
-                      ? "ring-2 ring-inset ring-red-500"
-                      : "hover:ring-1 hover:ring-inset hover:ring-gray-300"
-                  } ${images.length === 1 ? "col-span-2 aspect-[4/3]" : ""}`}
-                >
-                  <img
-                    src={image}
-                    alt={`${selectedProductName} view ${index + 1}`}
-                    className="h-full w-full object-contain"
-                    onError={(event) => {
-                      event.currentTarget.style.opacity = "0.25";
-                    }}
-                  />
-                  {activeImage === image && (
-                    <span className="absolute bottom-2 left-2 rounded bg-white/90 px-2 py-1 text-[10px] font-semibold text-gray-600 shadow-sm">
-                      Selected
-                    </span>
-                  )}
-                </button>
-              ))}
-
-              {images.length === 0 && (
-                <div className="col-span-2 flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-lg bg-gray-50 text-gray-400">
-                  <ImageIcon size={42} />
-                  <p className="text-sm">Product image unavailable</p>
-                </div>
-              )}
-            </div>
-
-            {images.length > 4 && (
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                {images.slice(4).map((image, index) => (
-                  <button
-                    key={`${image}-extra-${index}`}
-                    type="button"
-                    onClick={() => setActiveImage(image)}
-                    className={`h-[68px] w-[68px] shrink-0 rounded-lg border-2 bg-white p-1 ${
-                      activeImage === image
-                        ? "border-red-500"
-                        : "border-gray-200"
-                    }`}
-                    aria-label={`View additional product image ${index + 5}`}
-                  >
-                    <img
-                      src={image}
-                      alt=""
-                      className="h-full w-full object-contain"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <p className="mt-3 text-center text-xs text-gray-400">
-              {images.length} product image{images.length !== 1 ? "s" : ""}
-              <span className="mx-1">•</span>
-              Select an image to view it
-            </p>
+        <div className="grid grid-cols-1 items-start gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(400px,0.92fr)] lg:gap-6">
+          {/* LEFT: RESPONSIVE PRODUCT IMAGE GALLERY */}
+          <section className="min-w-0 rounded-xl bg-white p-2.5 shadow-sm sm:p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+            <ProductGallery
+              images={galleryImages}
+              activeImage={activeImage}
+              onImageSelect={setActiveImage}
+              productName={selectedProductName}
+            />
           </section>
 
           {/* RIGHT: PRODUCT DETAILS */}
-          <section className="min-w-0 rounded-lg bg-white p-4 shadow-sm sm:p-5 lg:p-6">
+          <section className="min-w-0 rounded-xl bg-white p-3 shadow-sm sm:p-5 lg:p-6">
             {product.brand && (
               <p className="mb-2 text-xs font-bold uppercase tracking-wider text-red-600 sm:text-sm">
                 {product.brand}
